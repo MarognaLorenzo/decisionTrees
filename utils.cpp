@@ -26,3 +26,30 @@ matrix read_csv(const std::string& filename) {
     
     return data;
 }
+
+
+float frac(int count, int total){
+    return (float) count / total;
+}
+
+float fractionLog(int count, int total){
+    if (count == 0) return 0;
+    float fraction = frac(count, total);
+    return fraction * std::log2(fraction);
+}
+
+
+matrix transpose(matrix & data){
+    if (data.size() == 0) return {};
+    matrix result (data[0].size());
+    for(int r = 0; r < data[0].size(); r++){
+        bool_vec v (data.size());
+        result[r] = v;
+    }
+    for(int r = 0; r < data.size(); r++){
+        for(int c = 0; c < data[0].size(); c++){
+            result[c][r] = data[r][c];
+        }
+    }
+    return result;
+}

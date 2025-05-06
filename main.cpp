@@ -11,28 +11,22 @@ public:
     matrix data;
     int selected_index;
     bool_vec use;
-
-    float frac(int count, int total){
-        return (float) count / total;
-    }
-
-    float fractionLog(int count, int total){
-        if (count == 0) return 0;
-        float fraction = frac(count, total);
-        return fraction * std::log2(fraction);
-    }
+    matrix tdata;
 
 
-    float calculate_binary_entropy(std::vector<bool> & labels, std::vector<bool> & interesting_indeces){
-        if (interesting_indeces.size() != labels.size()) throw std::invalid_argument("input sizes don't match");
+
+
+    float calculate_binary_entropy(std::vector<bool> & labels, std::vector<bool> & col){
         using namespace std;
-        int total = interesting_indeces.size();
-        int total_positive = std::count_if(interesting_indeces.begin(), interesting_indeces.end(), [](bool val){return val;});
-        int total_negative = interesting_indeces.size() - total_positive;
+        if (use.size() != labels.size()) throw invalid_argument("input sizes don't match");
+        int total = count_if(use.begin(), use.end(), [](bool val){return val;});
+        int total_positive = count_if(col.begin(), col.end(), [](bool val){return val;});
+        int total_negative = total - total_positive;
 
         int pos_pos = 0, pos_neg = 0, neg_pos = 0, neg_neg = 0;
-        for(int i = 0; i < interesting_indeces.size(); i++){
-            if(interesting_indeces[i]){
+        for(int i = 0; i < use.size(); i++){
+            if(!use[i]) continue;
+            if(col[i]){
                 if(labels[i]){
                     pos_pos ++;
                 } else {
@@ -61,15 +55,17 @@ public:
         return combined_entropy;
     }
 
-    std::vector<bool> get_indices(matrix m, int column){
+    std::vector<bool> get_col(matrix m, int column){
         std::vector<bool> row;
-        std::for_each(m.begin(), m.end(), [&column, &row](bool_vec v){row.push_back(v[column]);});
+        for(int i = 0; i< m.size(); i++){
+            row.push_back(use[i] && m[i][column]);
+        }
         return row;
     }
 
     float entropy_split(matrix & data, bool_vec & labels, int column){
-        std::vector<bool> indices = get_indices(data, column);
-        float result = calculate_binary_entropy(labels, indices);
+        std::vector<bool> col = get_col(data, column);
+        float result = calculate_binary_entropy(labels, col);
         return result;
     }
 
@@ -88,7 +84,9 @@ public:
             if (el.size() != data.at(0).size()) throw std::invalid_argument("Matrix shape is inconsistent");
         }
         this->data = data;
-        selected_index = decide_split(data, labels);
+        int split_index = decide_split(data, labels);
+
+
     } 
 
     int predict(std::vector<bool> & instance) {
@@ -128,6 +126,7 @@ std::pair<matrix, bool_vec> get_train_test_data(matrix data){
 int main() {
     DecisionTree dt(false);
     matrix data = read_csv("data.csv");
+    matrix r = transpose(data);
     auto parsed_data = get_train_test_data(data);
     matrix train_data = parsed_data.first;
     bool_vec labels = parsed_data.second; 
