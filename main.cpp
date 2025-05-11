@@ -10,23 +10,20 @@ public:
     DecisionTree* left;
     matrix data;
     int selected_index;
-    bool_vec use;
+    std::vector<int> use;
     matrix tdata;
+    bool_vec labels;
 
 
 
 
-    float calculate_binary_entropy(std::vector<bool> & labels, std::vector<bool> & col){
+    float calculate_binary_entropy(int column){
         using namespace std;
-        if (use.size() != labels.size()) throw invalid_argument("input sizes don't match");
-        int total = count_if(use.begin(), use.end(), [](bool val){return val;});
-        int total_positive = count_if(col.begin(), col.end(), [](bool val){return val;});
-        int total_negative = total - total_positive;
+        int total = use.size();
 
         int pos_pos = 0, pos_neg = 0, neg_pos = 0, neg_neg = 0;
         for(int i = 0; i < use.size(); i++){
-            if(!use[i]) continue;
-            if(col[i]){
+            if(tdata[column][i]){
                 if(labels[i]){
                     pos_pos ++;
                 } else {
@@ -40,8 +37,8 @@ public:
                 }
             }
         }
-        float pos_entropy = fractionLog(pos_pos, total_positive) + fractionLog(pos_neg, total_positive);
-        float neg_entropy = fractionLog(neg_pos, total_negative) + fractionLog(neg_neg, total_negative);
+        float pos_entropy = fractionLog(pos_pos, pos_pos + pos_neg) + fractionLog(pos_neg, pos_pos + pos_neg);
+        float neg_entropy = fractionLog(neg_pos, neg_pos + neg_neg) + fractionLog(neg_neg, neg_pos + neg_neg);
         if(verbose){
             cout << "pos pos " << pos_pos << endl;
             cout << "pos neg " << pos_neg << endl;
@@ -51,22 +48,8 @@ public:
             cout << "neg entropy " << neg_entropy << endl;
         }        
 
-        float combined_entropy = frac(total_positive, total) * pos_entropy + frac(total_negative, total) * neg_entropy;
+        float combined_entropy = frac(pos_pos + pos_neg, total) * pos_entropy + frac(neg_pos + neg_neg, total) * neg_entropy;
         return combined_entropy;
-    }
-
-    std::vector<bool> get_col(matrix m, int column){
-        std::vector<bool> row;
-        for(int i = 0; i< m.size(); i++){
-            row.push_back(use[i] && m[i][column]);
-        }
-        return row;
-    }
-
-    float entropy_split(matrix & data, bool_vec & labels, int column){
-        std::vector<bool> col = get_col(data, column);
-        float result = calculate_binary_entropy(labels, col);
-        return result;
     }
 
 public:
@@ -74,8 +57,18 @@ public:
         verbose = v;
         return;
     }
-    DecisionTree(bool_vec use){
-        this->use = use;
+    DecisionTree(matrix d, bool_vec _labels){
+        data = d;
+        tdata = transpose(d);
+        labels = _labels;
+        use = std::vector<int> (d.size());
+        for(int i = 0; i < use.size(); i++) use[i] = i;
+    }
+    
+    DecisionTree(matrix & _data, matrix & transposed, std::vector<int> _use){
+        data = _data;
+        tdata = transposed;
+        use = _use;
     }
 
     void fit(std::vector<std::vector<bool> > & data, std::vector<bool> & labels){
@@ -84,9 +77,7 @@ public:
             if (el.size() != data.at(0).size()) throw std::invalid_argument("Matrix shape is inconsistent");
         }
         this->data = data;
-        int split_index = decide_split(data, labels);
-
-
+        // int split_index = decide_split(data, labels);
     } 
 
     int predict(std::vector<bool> & instance) {
@@ -96,12 +87,15 @@ public:
         return 0;
     }
 
-    int decide_split(matrix & data, bool_vec & labels){
+    int decide_split(){
+        this->data = data;
+        this -> tdata = transpose(data);
+
         float smaller_entropy = -1;
         int best_index;
         int s = data.size();
         for(int i = 0; i < data[0].size(); i++){
-            float entropy = entropy_split(data, labels, i);
+            float entropy = calculate_binary_entropy(i);
             std::cout << " entopy " << entropy << " at index " << i << std::endl;
             if(entropy > smaller_entropy){
                 smaller_entropy = entropy;
@@ -124,13 +118,13 @@ std::pair<matrix, bool_vec> get_train_test_data(matrix data){
     return {train_data, labels};
 }
 int main() {
-    DecisionTree dt(false);
     matrix data = read_csv("data.csv");
-    matrix r = transpose(data);
     auto parsed_data = get_train_test_data(data);
     matrix train_data = parsed_data.first;
     bool_vec labels = parsed_data.second; 
-    int best_split = dt.decide_split(train_data, labels);
+
+    DecisionTree dt(train_data, labels);
+    int best_split = dt.decide_split();
     std::cout << "best split: " << best_split << std::endl;
     return 0;
 }
