@@ -14,9 +14,6 @@ public:
     matrix tdata;
     bool_vec labels;
 
-
-
-
     float calculate_binary_entropy(int column){
         using namespace std;
         int total = use.size();
@@ -53,6 +50,9 @@ public:
     }
 
 public:
+    DecisionTree(){
+
+    }
     DecisionTree(bool v){
         verbose = v;
         return;
@@ -71,13 +71,16 @@ public:
         use = _use;
     }
 
-    void fit(std::vector<std::vector<bool> > & data, std::vector<bool> & labels){
+    void fit(matrix & _data, bool_vec & _labels){
         if(data.size() == 0) return;
         for(auto el: data) {
             if (el.size() != data.at(0).size()) throw std::invalid_argument("Matrix shape is inconsistent");
         }
-        this->data = data;
-        // int split_index = decide_split(data, labels);
+        data = _data;
+        labels = _labels;
+        tdata = transpose(data);
+        use = std::vector<int> (data.size());
+        for(int i = 0; i < use.size(); i++) use[i] = i;
     } 
 
     int predict(std::vector<bool> & instance) {
@@ -122,7 +125,6 @@ int main() {
     auto parsed_data = get_train_test_data(data);
     matrix train_data = parsed_data.first;
     bool_vec labels = parsed_data.second; 
-
     DecisionTree dt(train_data, labels);
     int best_split = dt.decide_split();
     std::cout << "best split: " << best_split << std::endl;
