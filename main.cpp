@@ -9,17 +9,19 @@ public:
     DecisionTree* right;
     DecisionTree* left;
     matrix data;
-    int selected_index;
-    std::vector<int> use;
+    int splitting_column;
+    std::vector<int> rows_to_use;
+    std::vector<int> cols_to_use;
     matrix tdata;
     bool_vec labels;
+    bool root;
 
     float calculate_binary_entropy(int column){
         using namespace std;
-        int total = use.size();
+        int total = rows_to_use.size();
 
         int pos_pos = 0, pos_neg = 0, neg_pos = 0, neg_neg = 0;
-        for(int i = 0; i < use.size(); i++){
+        for(int i = 0; i < rows_to_use.size(); i++){
             if(tdata[column][i]){
                 if(labels[i]){
                     pos_pos ++;
@@ -51,36 +53,55 @@ public:
 
 public:
     DecisionTree(){
-
+        verbose = false;
+        root = true;
     }
     DecisionTree(bool v){
         verbose = v;
+        root = true;
         return;
     }
-    DecisionTree(matrix d, bool_vec _labels){
-        data = d;
-        tdata = transpose(d);
-        labels = _labels;
-        use = std::vector<int> (d.size());
-        for(int i = 0; i < use.size(); i++) use[i] = i;
+    DecisionTree(DecisionTree & parentTree, std::vector<int> _rows_to_use, std::vector<int> _cols_to_use){
+        data = parentTree.data;
+        tdata = parentTree.tdata;
+        labels = parentTree.labels;
+        rows_to_use = _rows_to_use;
+        cols_to_use = _cols_to_use;
+        root = false;
     }
     
-    DecisionTree(matrix & _data, matrix & transposed, std::vector<int> _use){
-        data = _data;
-        tdata = transposed;
-        use = _use;
-    }
-
     void fit(matrix & _data, bool_vec & _labels){
-        if(data.size() == 0) return;
-        for(auto el: data) {
-            if (el.size() != data.at(0).size()) throw std::invalid_argument("Matrix shape is inconsistent");
+        // if(rows_to_use.size() == 0 || cols_to_use.size() == 0) return;
+        if(root){
+            for(auto el: data) {
+                if (el.size() != data.at(0).size()) throw std::invalid_argument("Matrix shape is inconsistent");
+            }
+            data = _data;
+            labels = _labels;
+            tdata = transpose(data);
+            
+            // Set all rows to be used
+            rows_to_use = std::vector<int> (data.size());
+            for(int i = 0; i < data.size(); i++) rows_to_use[i] = i;
+            
+            // Set all columns to be used
+            cols_to_use = std::vector<int> (data[0].size());
+            for(int i = 0; i < data[0].size(); i++) cols_to_use[i] = i;
         }
-        data = _data;
-        labels = _labels;
-        tdata = transpose(data);
-        use = std::vector<int> (data.size());
-        for(int i = 0; i < use.size(); i++) use[i] = i;
+
+        int best_col = decide_split();
+
+        splitting_column = best_col;
+
+        std::vector<int> cols_left;
+        std::copy_if(cols_to_use.begin(), cols_to_use.end(), std::back_inserter(cols_left), [&best_col](int i){return i != best_col;});
+
+        std::vector<int> cols_right(cols_left.begin(), cols_left.end());
+
+
+        left = new DecisionTree(this);
+        right = new DecisionTree(this);
+
     } 
 
     int predict(std::vector<bool> & instance) {
@@ -91,18 +112,14 @@ public:
     }
 
     int decide_split(){
-        this->data = data;
-        this -> tdata = transpose(data);
-
         float smaller_entropy = -1;
         int best_index;
-        int s = data.size();
-        for(int i = 0; i < data[0].size(); i++){
-            float entropy = calculate_binary_entropy(i);
-            std::cout << " entopy " << entropy << " at index " << i << std::endl;
+        for(int feature: cols_to_use){
+            float entropy = calculate_binary_entropy(feature);
+            std::cout << " entopy " << entropy << " at index " << feature << std::endl;
             if(entropy > smaller_entropy){
                 smaller_entropy = entropy;
-                best_index = i;
+                best_index = feature;
             }
         }
         return best_index;
@@ -120,13 +137,13 @@ std::pair<matrix, bool_vec> get_train_test_data(matrix data){
     }
     return {train_data, labels};
 }
+
 int main() {
     matrix data = read_csv("data.csv");
     auto parsed_data = get_train_test_data(data);
     matrix train_data = parsed_data.first;
     bool_vec labels = parsed_data.second; 
-    DecisionTree dt(train_data, labels);
-    int best_split = dt.decide_split();
-    std::cout << "best split: " << best_split << std::endl;
+    DecisionTree dt = DecisionTree();
+    dt.fit(train_data, labels);
     return 0;
 }
