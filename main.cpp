@@ -69,39 +69,52 @@ public:
         cols_to_use = _cols_to_use;
         root = false;
     }
-    
-    void fit(matrix & _data, bool_vec & _labels){
-        // if(rows_to_use.size() == 0 || cols_to_use.size() == 0) return;
-        if(root){
-            for(auto el: data) {
-                if (el.size() != data.at(0).size()) throw std::invalid_argument("Matrix shape is inconsistent");
-            }
-            data = _data;
-            labels = _labels;
-            tdata = transpose(data);
-            
-            // Set all rows to be used
-            rows_to_use = std::vector<int> (data.size());
-            for(int i = 0; i < data.size(); i++) rows_to_use[i] = i;
-            
-            // Set all columns to be used
-            cols_to_use = std::vector<int> (data[0].size());
-            for(int i = 0; i < data[0].size(); i++) cols_to_use[i] = i;
-        }
 
-        int best_col = decide_split();
-
-        splitting_column = best_col;
+    void _fit(){
+        if(rows_to_use.size() == 0 || cols_to_use.size() == 0){
+            return;
+        } 
+                
+        splitting_column = decide_split();
+        if(calculate_binary_entropy(splitting_column) == 0) return;
 
         std::vector<int> cols_left;
-        std::copy_if(cols_to_use.begin(), cols_to_use.end(), std::back_inserter(cols_left), [&best_col](int i){return i != best_col;});
+        std::copy_if(cols_to_use.begin(), cols_to_use.end(), std::back_inserter(cols_left), [this](int i){return i != splitting_column;});
 
         std::vector<int> cols_right(cols_left.begin(), cols_left.end());
 
+        // TODO FIX THIS
+        std::vector<int> rows_left;
+        std::copy_if(rows_to_use.begin(), rows_to_use.end(), std::back_inserter(rows_left), [this](int row){return tdata[splitting_column][row];});
 
-        left = new DecisionTree(this);
-        right = new DecisionTree(this);
+        std::vector<int> rows_right;
+        std::copy_if(rows_to_use.begin(), rows_to_use.end(), std::back_inserter(rows_right), [this](int row){return !tdata[splitting_column][row];});
 
+
+        left = new DecisionTree(*this, rows_left, cols_left);
+        right = new DecisionTree(*this, rows_right, cols_right);
+
+        left->_fit();
+        right->_fit();
+    }
+    
+    void fit(matrix & _data, bool_vec & _labels){
+        for(auto el: data) {
+            if (el.size() != data.at(0).size()) throw std::invalid_argument("Matrix shape is inconsistent");
+        }
+        data = _data;
+        labels = _labels;
+        tdata = transpose(data);
+        
+        // Set all rows to be used
+        rows_to_use = std::vector<int> (data.size());
+        for(int i = 0; i < data.size(); i++) rows_to_use[i] = i;
+        
+        // Set all columns to be used
+        cols_to_use = std::vector<int> (data[0].size());
+        for(int i = 0; i < data[0].size(); i++) cols_to_use[i] = i;
+
+        _fit();
     } 
 
     int predict(std::vector<bool> & instance) {
@@ -112,16 +125,18 @@ public:
     }
 
     int decide_split(){
-        float smaller_entropy = -1;
+        float smaller_entropy = -100;
         int best_index;
+        std::cout << "--------------- \n cols: " << cols_to_use.size() << "\n rows: " << rows_to_use.size() << "\n";
         for(int feature: cols_to_use){
             float entropy = calculate_binary_entropy(feature);
-            std::cout << " entopy " << entropy << " at index " << feature << std::endl;
+            std::cout << "\t entopy " << entropy << " at index " << feature << std::endl;
             if(entropy > smaller_entropy){
                 smaller_entropy = entropy;
                 best_index = feature;
             }
         }
+        std::cout << "Selected feature " << best_index << " with entropy " << smaller_entropy << std::endl << "----------\n";
         return best_index;
     }
 };
