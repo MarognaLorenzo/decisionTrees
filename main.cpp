@@ -12,24 +12,24 @@ public:
     int splitting_column;
     std::vector<int> rows_to_use;
     std::vector<int> cols_to_use;
-    matrix tdata;
     bool_vec labels;
     bool root;
+    bool prediction;
 
     float calculate_binary_entropy(int column){
         using namespace std;
         int total = rows_to_use.size();
 
         int pos_pos = 0, pos_neg = 0, neg_pos = 0, neg_neg = 0;
-        for(int i = 0; i < rows_to_use.size(); i++){
-            if(tdata[column][i]){
-                if(labels[i]){
+        for(auto row: rows_to_use){
+            if(data[row][column]){
+                if(labels[row]){
                     pos_pos ++;
                 } else {
                     pos_neg ++;
                 }
             } else {
-                if(labels[i]){
+                if(labels[row]){
                     neg_pos ++;
                 } else {
                     neg_neg ++;
@@ -51,6 +51,13 @@ public:
         return combined_entropy;
     }
 
+    float calculate_class_entropy(){
+        int total = rows_to_use.size();
+        int count = std::count_if(rows_to_use.begin(), rows_to_use.end(), [this](int row){return labels[row];});
+        float class_entropy = fractionLog(count, total) + fractionLog(total - count, total);
+        return class_entropy;
+    }
+
 public:
     DecisionTree(){
         verbose = false;
@@ -63,20 +70,26 @@ public:
     }
     DecisionTree(DecisionTree & parentTree, std::vector<int> _rows_to_use, std::vector<int> _cols_to_use){
         data = parentTree.data;
-        tdata = parentTree.tdata;
         labels = parentTree.labels;
         rows_to_use = _rows_to_use;
         cols_to_use = _cols_to_use;
         root = false;
+        verbose = parentTree.verbose;
     }
 
     void _fit(){
-        if(rows_to_use.size() == 0 || cols_to_use.size() == 0){
+        std::cout << "cols:" << cols_to_use.size() << "\nrows: " << rows_to_use.size() << "\n";
+        if(rows_to_use.size() == 0 || cols_to_use.size() == 0 ){
             return;
         } 
-                
+        if(calculate_class_entropy() == 0){
+            std::cout << "\tstopping" << std::endl;
+            prediction = labels[rows_to_use[0]];
+            splitting_column = -1;
+            return;
+        }
         splitting_column = decide_split();
-        if(calculate_binary_entropy(splitting_column) == 0) return;
+        std::cout << "I am splitting on " << splitting_column << std::endl;
 
         std::vector<int> cols_left;
         std::copy_if(cols_to_use.begin(), cols_to_use.end(), std::back_inserter(cols_left), [this](int i){return i != splitting_column;});
@@ -85,16 +98,17 @@ public:
 
         // TODO FIX THIS
         std::vector<int> rows_left;
-        std::copy_if(rows_to_use.begin(), rows_to_use.end(), std::back_inserter(rows_left), [this](int row){return tdata[splitting_column][row];});
+        std::copy_if(rows_to_use.begin(), rows_to_use.end(), std::back_inserter(rows_left), [this](int row){return data[row][splitting_column];});
 
         std::vector<int> rows_right;
-        std::copy_if(rows_to_use.begin(), rows_to_use.end(), std::back_inserter(rows_right), [this](int row){return !tdata[splitting_column][row];});
+        std::copy_if(rows_to_use.begin(), rows_to_use.end(), std::back_inserter(rows_right), [this](int row){return !data[row][splitting_column];});
 
-
+        std::cout << "\ngoing left (true)" << std::endl;
         left = new DecisionTree(*this, rows_left, cols_left);
-        right = new DecisionTree(*this, rows_right, cols_right);
-
         left->_fit();
+
+        std::cout << "\ngoing right (false)" << std::endl;
+        right = new DecisionTree(*this, rows_right, cols_right);
         right->_fit();
     }
     
@@ -104,7 +118,6 @@ public:
         }
         data = _data;
         labels = _labels;
-        tdata = transpose(data);
         
         // Set all rows to be used
         rows_to_use = std::vector<int> (data.size());
@@ -118,25 +131,25 @@ public:
     } 
 
     int predict(std::vector<bool> & instance) {
-        return 0;
-    }
-    int get_positive(std::vector<bool> & labels){
-        return 0;
+        if (splitting_column < 0) return prediction;
+        if(instance[splitting_column]) return left->predict(instance);
+        else return right->predict(instance);
     }
 
     int decide_split(){
         float smaller_entropy = -100;
         int best_index;
-        std::cout << "--------------- \n cols: " << cols_to_use.size() << "\n rows: " << rows_to_use.size() << "\n";
+        // std::cout << "--------------- \n cols: ";
+
         for(int feature: cols_to_use){
             float entropy = calculate_binary_entropy(feature);
-            std::cout << "\t entopy " << entropy << " at index " << feature << std::endl;
+            // std::cout << "\t entopy " << entropy << " at index " << feature << std::endl;
             if(entropy > smaller_entropy){
                 smaller_entropy = entropy;
                 best_index = feature;
             }
         }
-        std::cout << "Selected feature " << best_index << " with entropy " << smaller_entropy << std::endl << "----------\n";
+        std::cout << "Selected feature " << best_index << " with entropy " << smaller_entropy << std::endl;
         return best_index;
     }
 };
@@ -160,5 +173,7 @@ int main() {
     bool_vec labels = parsed_data.second; 
     DecisionTree dt = DecisionTree();
     dt.fit(train_data, labels);
+    bool_vec instance = {true, false, false, true, false, false, true};
+    std::cout << "result: " << (dt.predict(instance) ? "true" : "false" ) << std::endl;
     return 0;
 }
