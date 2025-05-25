@@ -54,7 +54,7 @@ matrix transpose(matrix & data){
     return result;
 }
 
-std::pair<matrix, bool_vec> get_train_test_data(matrix data){
+TrainLabelData get_train_label_data(matrix data){
     matrix train_data;
     bool_vec labels;
     for(auto row: data){
@@ -64,4 +64,10 @@ std::pair<matrix, bool_vec> get_train_test_data(matrix data){
         train_data.back().pop_back();
     }
     return {train_data, labels};
+}
+TrainLabelData::~TrainLabelData(){};
+TrainLabelData::TrainLabelData(){};
+TrainLabelData::TrainLabelData(matrix _train, bool_vec _labels){
+    trainData = _train;
+    labels = _labels;
 }

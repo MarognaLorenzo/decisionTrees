@@ -5,14 +5,12 @@
 #include "DecisionTree.h"
 
 int main() {
-    matrix data = read_csv("data/data.csv");
+    matrix input_data = read_csv("data/data.csv");
 
-    auto parsed_data = get_train_test_data(data);
-    matrix train_data = parsed_data.first;
-    bool_vec labels = parsed_data.second; 
+    TrainLabelData data = get_train_label_data(input_data);
 
     DecisionTree dt = DecisionTree();
-    dt.fit(train_data, labels);
+    dt.fit(data.trainData, data.labels);
 
     bool_vec instance = {true, false, false, true, false, false, true};
     std::cout << "result: " << (dt.predict(instance) ? "true" : "false" ) << std::endl;

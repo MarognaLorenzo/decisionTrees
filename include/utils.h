@@ -15,5 +15,15 @@ float fractionLog(int count, int total);
 
 matrix transpose(matrix & data);
 
-std::pair<matrix, bool_vec> get_train_test_data(matrix data);
+
+typedef struct TrainLabelData{
+    matrix trainData;
+    bool_vec labels;
+    
+    ~TrainLabelData();
+    TrainLabelData();
+    TrainLabelData(matrix _train, bool_vec _labels);
+} TrainLabelData;
+
+TrainLabelData get_train_label_data(matrix data);
 #endif // UTILS_H
