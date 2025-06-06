@@ -71,3 +71,6 @@ TrainLabelData::TrainLabelData(matrix _train, bool_vec _labels){
     trainData = _train;
     labels = _labels;
 }
+matrix TrainLabelData::get_train_data(){
+    return this->trainData;
+};

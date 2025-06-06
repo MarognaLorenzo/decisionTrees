@@ -23,6 +23,7 @@ typedef struct TrainLabelData{
     ~TrainLabelData();
     TrainLabelData();
     TrainLabelData(matrix _train, bool_vec _labels);
+    matrix get_train_data();
 } TrainLabelData;
 
 TrainLabelData get_train_label_data(matrix data);

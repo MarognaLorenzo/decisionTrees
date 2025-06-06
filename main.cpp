@@ -9,6 +9,8 @@ int main() {
 
     TrainLabelData data = get_train_label_data(input_data);
 
+    std::cout << "Train data has " << data.get_train_data().size() << " instances" << std::endl;
+
     DecisionTree dt = DecisionTree();
     dt.fit(data.trainData, data.labels);
 
